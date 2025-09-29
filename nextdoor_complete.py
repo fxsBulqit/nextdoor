@@ -485,9 +485,22 @@ class NextdoorScanner:
     def _type_letter_by_letter(self, element, text):
         """Type text letter by letter with human-like delays"""
         element.clear()
-        for char in text:
+        for i, char in enumerate(text):
             element.send_keys(char)
-            time.sleep(random.uniform(0.1, 0.3))
+
+            # Vary typing speed more realistically
+            if char == ' ':  # Slight pause at spaces
+                delay = random.uniform(0.1, 0.4)
+            elif i > 0 and text[i-1] == ' ':  # Faster after spaces
+                delay = random.uniform(0.05, 0.15)
+            else:  # Normal typing
+                delay = random.uniform(0.08, 0.35)
+
+            # Occasional longer pauses (thinking/hesitation)
+            if random.random() < 0.05:  # 5% chance
+                delay += random.uniform(0.3, 0.8)
+
+            time.sleep(delay)
 
     def _login_to_nextdoor(self):
         """Login to Nextdoor automatically"""
@@ -686,10 +699,10 @@ class NextdoorScanner:
                         all_posts.extend(posts)
                         print(f"✅ Found {len(posts)} posts for '{term}'")
 
-                    # Anti-detection: longer delay between searches
+                    # Anti-detection: much longer delay between searches to avoid shadowban
                     if i < len(search_terms) - 1:
-                        delay = random.uniform(20, 35)
-                        print(f"⏳ Waiting {delay:.1f}s before next search...")
+                        delay = random.uniform(300, 600)  # 5-10 minutes
+                        print(f"⏳ Big wait to avoid shadowban: {delay/60:.1f} minutes before next search...")
                         time.sleep(delay)
 
                         # Handle any popups that might appear
@@ -1421,10 +1434,22 @@ This gist will be automatically deleted after use.
                 print("🔚 No new posts found for 3 scrolls - likely reached bottom")
                 break
 
-            # Scroll down
-            scroll_amount = random.randint(500, 800)
+            # Scroll down with more randomness
+            scroll_amount = random.randint(300, 1200)
             self.driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
-            time.sleep(random.uniform(3, 5))
+
+            # Add some random mouse movements occasionally
+            if random.random() < 0.3:  # 30% chance
+                self.driver.execute_script("""
+                    var event = new MouseEvent('mousemove', {
+                        clientX: Math.random() * window.innerWidth,
+                        clientY: Math.random() * window.innerHeight
+                    });
+                    document.dispatchEvent(event);
+                """)
+
+            # More varied wait times
+            time.sleep(random.uniform(2, 8))
 
             # Check if page height changed
             new_height = self.driver.execute_script("return document.body.scrollHeight")
