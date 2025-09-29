@@ -668,14 +668,14 @@ class NextdoorScanner:
 
             print(f"📍 After login URL: {self.driver.current_url}")
 
-            # Search multiple terms with anti-detection (temporarily just first one for testing)
+            # Search multiple terms with anti-detection
             search_terms = [
-                "pool cleaning",
-                "window washing",
-                "bin cleaning",
-                "lawn care",
+                "pool",
+                "window",
                 "pest control",
-                "exterminator",
+                "gardener",
+                "lawn care",
+                "trash",
                 "pressure washing"
             ]
 
