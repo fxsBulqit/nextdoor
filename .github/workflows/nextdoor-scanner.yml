@@ -34,10 +34,40 @@ jobs:
 
     - name: Install ChromeDriver
       run: |
-        CHROME_VERSION=$(google-chrome --version | cut -d " " -f3 | cut -d "." -f1)
-        wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}/chromedriver_linux64.zip"
-        sudo unzip -o /tmp/chromedriver.zip -d /usr/local/bin/
-        sudo chmod +x /usr/local/bin/chromedriver
+        # Get Chrome version
+        CHROME_VERSION=$(google-chrome --version | cut -d " " -f3)
+        echo "Chrome version: $CHROME_VERSION"
+
+        # Use Chrome for Testing API for newer versions
+        CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" | \
+          python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+chrome_version = '$CHROME_VERSION'
+major_version = chrome_version.split('.')[0]
+
+# Find matching version
+for version in reversed(data['versions']):
+    if version['version'].startswith(major_version + '.'):
+        for download in version['downloads'].get('chromedriver', []):
+            if download['platform'] == 'linux64':
+                print(download['url'])
+                sys.exit(0)
+        break
+")
+
+        if [ -z "$CHROMEDRIVER_URL" ]; then
+          echo "Failed to find ChromeDriver URL, using fallback method"
+          # Fallback: install via apt
+          sudo apt-get install -y chromium-chromedriver
+          sudo ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver
+        else
+          echo "Downloading ChromeDriver from: $CHROMEDRIVER_URL"
+          wget -O /tmp/chromedriver-linux64.zip "$CHROMEDRIVER_URL"
+          sudo unzip -o /tmp/chromedriver-linux64.zip -d /tmp/
+          sudo mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/
+          sudo chmod +x /usr/local/bin/chromedriver
+        fi
 
     - name: Install Python dependencies
       run: |
