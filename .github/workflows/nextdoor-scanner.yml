@@ -1,0 +1,73 @@
+name: Nextdoor Service Scanner
+
+on:
+  schedule:
+    # Run at 8:00 PM CT (1:00 AM UTC during standard time, 2:00 AM UTC during daylight time)
+    - cron: '0 1 * * *'  # 1:00 AM UTC (8:00 PM CT standard time)
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget unzip xvfb
+
+    - name: Install Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
+    - name: Install ChromeDriver
+      run: |
+        CHROME_VERSION=$(google-chrome --version | cut -d " " -f3 | cut -d "." -f1)
+        wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}/chromedriver_linux64.zip"
+        sudo unzip -o /tmp/chromedriver.zip -d /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install selenium beautifulsoup4 groq requests
+
+    - name: Create API keys file
+      run: |
+        echo "${{ secrets.GROQ_API_KEY }}" > keys.txt
+      env:
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+    - name: Run Nextdoor Scanner
+      env:
+        GITHUB_ACTIONS: true
+        GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        BULQIT_EMAIL: ${{ secrets.BULQIT_EMAIL }}
+        BULQIT_EMAIL_PASSWORD: ${{ secrets.BULQIT_EMAIL_PASSWORD }}
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        sleep 3
+        python3 nextdoor_complete.py
+
+    - name: Upload artifacts on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: debug-files
+        path: |
+          *.html
+          *.txt
+        retention-days: 7
