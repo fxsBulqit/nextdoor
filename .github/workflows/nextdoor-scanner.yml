@@ -1,10 +1,9 @@
-name: Nextdoor Service Scanner
+name: Nextdoor Scanner
 
 on:
   schedule:
-    # Run at 8:00 PM CT (1:00 AM UTC during standard time, 2:00 AM UTC during daylight time)
-    - cron: '0 1 * * *'  # 1:00 AM UTC (8:00 PM CT standard time)
-  workflow_dispatch:  # Allow manual triggering
+    - cron: '0 1 * * *'  # 8:00 PM CT (1:00 AM UTC)
+  workflow_dispatch:
 
 jobs:
   scan:
@@ -12,100 +11,35 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
 
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget unzip xvfb
-
-    - name: Install Chrome
-      run: |
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-
-    - name: Install ChromeDriver
-      run: |
-        # Get Chrome version
-        CHROME_VERSION=$(google-chrome --version | cut -d " " -f3)
-        echo "Chrome version: $CHROME_VERSION"
-
-        # Use Chrome for Testing API for newer versions
-        CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" | \
-          python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-chrome_version = '$CHROME_VERSION'
-major_version = chrome_version.split('.')[0]
-
-# Find matching version
-for version in reversed(data['versions']):
-    if version['version'].startswith(major_version + '.'):
-        for download in version['downloads'].get('chromedriver', []):
-            if download['platform'] == 'linux64':
-                print(download['url'])
-                sys.exit(0)
-        break
-")
-
-        if [ -z "$CHROMEDRIVER_URL" ]; then
-          echo "Failed to find ChromeDriver URL, using fallback method"
-          # Fallback: install via apt
-          sudo apt-get install -y chromium-chromedriver
-          sudo ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver
-        else
-          echo "Downloading ChromeDriver from: $CHROMEDRIVER_URL"
-          wget -O /tmp/chromedriver-linux64.zip "$CHROMEDRIVER_URL"
-          sudo unzip -o /tmp/chromedriver-linux64.zip -d /tmp/
-          sudo mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/
-          sudo chmod +x /usr/local/bin/chromedriver
-        fi
-
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
+        sudo apt-get install -y wget unzip xvfb google-chrome-stable chromium-chromedriver
+        sudo ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver
         pip install selenium beautifulsoup4 groq requests
 
-    - name: Create API keys file
+    - name: Create keys file
       run: |
-        # Create keys.txt with all available Groq API keys (one per line)
         if [ ! -z "${{ secrets.GROQ_API_KEY_1 }}" ]; then echo "${{ secrets.GROQ_API_KEY_1 }}" >> keys.txt; fi
         if [ ! -z "${{ secrets.GROQ_API_KEY_2 }}" ]; then echo "${{ secrets.GROQ_API_KEY_2 }}" >> keys.txt; fi
         if [ ! -z "${{ secrets.GROQ_API_KEY_3 }}" ]; then echo "${{ secrets.GROQ_API_KEY_3 }}" >> keys.txt; fi
         if [ ! -z "${{ secrets.GROQ_API_KEY_4 }}" ]; then echo "${{ secrets.GROQ_API_KEY_4 }}" >> keys.txt; fi
         if [ ! -z "${{ secrets.GROQ_API_KEY_5 }}" ]; then echo "${{ secrets.GROQ_API_KEY_5 }}" >> keys.txt; fi
-        # Fallback to single GROQ_API_KEY if no numbered keys exist
-        if [ ! -s keys.txt ] && [ ! -z "${{ secrets.GROQ_API_KEY }}" ]; then
-          echo "${{ secrets.GROQ_API_KEY }}" > keys.txt
-        fi
-        echo "Created keys.txt with $(wc -l < keys.txt) API key(s)"
 
-    - name: Run Nextdoor Scanner
+    - name: Run scanner
       env:
         GITHUB_ACTIONS: true
         GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         BULQIT_EMAIL: ${{ secrets.BULQIT_EMAIL }}
         BULQIT_EMAIL_PASSWORD: ${{ secrets.BULQIT_EMAIL_PASSWORD }}
+        DISPLAY: ':99'
       run: |
-        export DISPLAY=:99
-        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        Xvfb :99 -screen 0 1920x1080x24 &
         sleep 3
         python3 nextdoor_complete.py
-
-    - name: Upload artifacts on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: debug-files
-        path: |
-          *.html
-          *.txt
-        retention-days: 7
