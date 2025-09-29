@@ -461,6 +461,9 @@ class NextdoorScanner:
         })
 
         try:
+            # Try chromium-browser for GitHub Actions, fallback to Chrome locally
+            if os.getenv('GITHUB_ACTIONS') == 'true':
+                chrome_options.binary_location = '/usr/bin/chromium-browser'
             self.driver = webdriver.Chrome(options=chrome_options)
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 

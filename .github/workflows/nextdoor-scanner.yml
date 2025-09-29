@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget unzip xvfb google-chrome-stable chromium-chromedriver
+        sudo apt-get install -y wget unzip xvfb chromium-browser chromium-chromedriver
         sudo ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver
         pip install selenium beautifulsoup4 groq requests
 
