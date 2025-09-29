@@ -54,7 +54,7 @@ jobs:
         Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
         sleep 3
 
-        python3 -c "
+        python3 << 'EOF'
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import os
@@ -71,7 +71,7 @@ driver.get('https://www.google.com')
 print(f'Successfully loaded: {driver.title}')
 driver.quit()
 print('✅ Chrome test passed!')
-"
+EOF
 
     - name: Upload test artifacts
       if: always()
