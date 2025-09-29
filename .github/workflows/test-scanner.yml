@@ -54,24 +54,29 @@ jobs:
         Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
         sleep 3
 
-        python3 << 'EOF'
+        echo "Testing Chrome and ChromeDriver..."
+        google-chrome --version
+        chromedriver --version
+
+        echo "Testing Python Selenium import..."
+        python3 -c "import selenium; print('✅ Selenium imported successfully')"
+
+        echo "Testing basic Chrome automation..."
+        python3 -c "
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import os
 
-chrome_options = Options()
-chrome_options.add_argument('--headless=new')
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--disable-dev-shm-usage')
-chrome_options.add_argument('--disable-gpu')
+options = Options()
+options.add_argument('--headless=new')
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
 
-print('Testing Chrome and ChromeDriver...')
-driver = webdriver.Chrome(options=chrome_options)
+driver = webdriver.Chrome(options=options)
 driver.get('https://www.google.com')
-print(f'Successfully loaded: {driver.title}')
+print('Page title:', driver.title)
 driver.quit()
 print('✅ Chrome test passed!')
-EOF
+"
 
     - name: Upload test artifacts
       if: always()
