@@ -46,9 +46,17 @@ jobs:
 
     - name: Create API keys file
       run: |
-        echo "${{ secrets.GROQ_API_KEY }}" > keys.txt
-      env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        # Create keys.txt with all available Groq API keys (one per line)
+        if [ ! -z "${{ secrets.GROQ_API_KEY_1 }}" ]; then echo "${{ secrets.GROQ_API_KEY_1 }}" >> keys.txt; fi
+        if [ ! -z "${{ secrets.GROQ_API_KEY_2 }}" ]; then echo "${{ secrets.GROQ_API_KEY_2 }}" >> keys.txt; fi
+        if [ ! -z "${{ secrets.GROQ_API_KEY_3 }}" ]; then echo "${{ secrets.GROQ_API_KEY_3 }}" >> keys.txt; fi
+        if [ ! -z "${{ secrets.GROQ_API_KEY_4 }}" ]; then echo "${{ secrets.GROQ_API_KEY_4 }}" >> keys.txt; fi
+        if [ ! -z "${{ secrets.GROQ_API_KEY_5 }}" ]; then echo "${{ secrets.GROQ_API_KEY_5 }}" >> keys.txt; fi
+        # Fallback to single GROQ_API_KEY if no numbered keys exist
+        if [ ! -s keys.txt ] && [ ! -z "${{ secrets.GROQ_API_KEY }}" ]; then
+          echo "${{ secrets.GROQ_API_KEY }}" > keys.txt
+        fi
+        echo "Created keys.txt with $(wc -l < keys.txt) API key(s)"
 
     - name: Run Nextdoor Scanner
       env:
