@@ -1,0 +1,84 @@
+name: Test Nextdoor Scanner
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget unzip xvfb
+
+    - name: Install Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+
+    - name: Install ChromeDriver
+      run: |
+        # Simple fallback method for testing
+        sudo apt-get install -y chromium-chromedriver
+        sudo ln -sf /usr/bin/chromedriver /usr/local/bin/chromedriver
+        chromedriver --version
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install selenium beautifulsoup4 groq requests
+
+    - name: Create test API keys file
+      run: |
+        echo "test-key-placeholder" > keys.txt
+        echo "Created keys.txt for testing"
+
+    - name: Test Chrome setup
+      env:
+        GITHUB_ACTIONS: true
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        sleep 3
+
+        python3 -c "
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import os
+
+chrome_options = Options()
+chrome_options.add_argument('--headless=new')
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+chrome_options.add_argument('--disable-gpu')
+
+print('Testing Chrome and ChromeDriver...')
+driver = webdriver.Chrome(options=chrome_options)
+driver.get('https://www.google.com')
+print(f'Successfully loaded: {driver.title}')
+driver.quit()
+print('✅ Chrome test passed!')
+"
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs
+        path: |
+          *.log
+          *.txt
+        retention-days: 1
