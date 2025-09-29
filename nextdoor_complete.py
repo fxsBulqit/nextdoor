@@ -108,7 +108,7 @@ class EmailSender:
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
 
-    def send_daily_report(self, report_content, recipient_emails=["fxs@bulqit.com", "tjv@bulqit.com", "kjb@bulqit.com"]):
+    def send_daily_report(self, report_content, recipient_emails=["fxs@bulqit.com"]):
         """Send daily report via email"""
         subject = f"Bulqit Daily Social Media Opportunities - {datetime.now().strftime('%Y-%m-%d')}"
         return self._send_with_custom_subject(report_content, recipient_emails, subject)
