@@ -108,7 +108,7 @@ class EmailSender:
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
 
-    def send_daily_report(self, report_content, recipient_emails=["fxs@bulqit.com"]):
+    def send_daily_report(self, report_content, recipient_emails=["fxs@bulqit.com", "tjv@bulqit.com", "kjb@bulqit.com"]):
         """Send daily report via email"""
         subject = f"Bulqit Daily Social Media Opportunities - {datetime.now().strftime('%Y-%m-%d')}"
         return self._send_with_custom_subject(report_content, recipient_emails, subject)
@@ -418,23 +418,13 @@ class NextdoorScanner:
 
         chrome_options = Options()
 
-        # Enable headless mode for GitHub Actions
-        is_github_actions = os.getenv('GITHUB_ACTIONS') == 'true'
-        if is_github_actions:
-            chrome_options.add_argument("--headless=new")
+        # Visible mode for testing
+        # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--disable-features=VizDisplayCompositor")
-        chrome_options.add_argument("--disable-image-animation-resync")
-        chrome_options.add_argument("--disable-web-security")
-        chrome_options.add_argument("--allow-running-insecure-content")
-
-        # Disable lossless compression to improve performance
-        chrome_options.add_argument("--enable-features=VaapiVideoDecoder")
-        chrome_options.add_argument("--disable-gpu-sandbox")
         chrome_options.add_argument("--remote-debugging-port=0")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-plugins")
@@ -461,9 +451,6 @@ class NextdoorScanner:
         })
 
         try:
-            # Try chromium-browser for GitHub Actions, fallback to Chrome locally
-            if os.getenv('GITHUB_ACTIONS') == 'true':
-                chrome_options.binary_location = '/usr/bin/chromium-browser'
             self.driver = webdriver.Chrome(options=chrome_options)
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
@@ -485,22 +472,9 @@ class NextdoorScanner:
     def _type_letter_by_letter(self, element, text):
         """Type text letter by letter with human-like delays"""
         element.clear()
-        for i, char in enumerate(text):
+        for char in text:
             element.send_keys(char)
-
-            # Vary typing speed more realistically
-            if char == ' ':  # Slight pause at spaces
-                delay = random.uniform(0.1, 0.4)
-            elif i > 0 and text[i-1] == ' ':  # Faster after spaces
-                delay = random.uniform(0.05, 0.15)
-            else:  # Normal typing
-                delay = random.uniform(0.08, 0.35)
-
-            # Occasional longer pauses (thinking/hesitation)
-            if random.random() < 0.05:  # 5% chance
-                delay += random.uniform(0.3, 0.8)
-
-            time.sleep(delay)
+            time.sleep(random.uniform(0.1, 0.3))
 
     def _login_to_nextdoor(self):
         """Login to Nextdoor automatically"""
@@ -668,14 +642,14 @@ class NextdoorScanner:
 
             print(f"📍 After login URL: {self.driver.current_url}")
 
-            # Search multiple terms with anti-detection
+            # Search multiple terms with anti-detection (temporarily just first one for testing)
             search_terms = [
-                "pool",
-                "window",
-                "pest control",
-                "gardener",
+                "pool cleaning",
+                "window washing",
+                "bin cleaning",
                 "lawn care",
-                "trash",
+                "pest control",
+                "exterminator",
                 "pressure washing"
             ]
 
@@ -699,10 +673,10 @@ class NextdoorScanner:
                         all_posts.extend(posts)
                         print(f"✅ Found {len(posts)} posts for '{term}'")
 
-                    # Anti-detection: much longer delay between searches to avoid shadowban
+                    # Anti-detection: delay between searches
                     if i < len(search_terms) - 1:
-                        delay = random.uniform(300, 600)  # 5-10 minutes
-                        print(f"⏳ Big wait to avoid shadowban: {delay/60:.1f} minutes before next search...")
+                        delay = random.uniform(60, 120)  # 1-2 minutes
+                        print(f"⏳ Waiting {delay:.0f} seconds before next search...")
                         time.sleep(delay)
 
                         # Handle any popups that might appear
@@ -1434,22 +1408,43 @@ This gist will be automatically deleted after use.
                 print("🔚 No new posts found for 3 scrolls - likely reached bottom")
                 break
 
-            # Scroll down with more randomness
-            scroll_amount = random.randint(300, 1200)
+            # More human-like scrolling behavior
+            # Random chance to scroll up first (like reading something above)
+            if random.random() < 0.15:  # 15% chance
+                scroll_up = random.randint(100, 400)
+                self.driver.execute_script(f"window.scrollBy(0, -{scroll_up});")
+                time.sleep(random.uniform(0.5, 1.5))
+
+            # Vary scroll amounts much more (humans don't scroll consistently)
+            scroll_amount = random.randint(200, 1500)
             self.driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
 
-            # Add some random mouse movements occasionally
-            if random.random() < 0.3:  # 30% chance
-                self.driver.execute_script("""
-                    var event = new MouseEvent('mousemove', {
-                        clientX: Math.random() * window.innerWidth,
-                        clientY: Math.random() * window.innerHeight
-                    });
-                    document.dispatchEvent(event);
-                """)
+            # Occasional mid-scroll pause (like reading)
+            if random.random() < 0.2:  # 20% chance
+                time.sleep(random.uniform(1, 3))
 
             # More varied wait times
-            time.sleep(random.uniform(2, 8))
+            time.sleep(random.uniform(2, 7))
+
+            # Occasionally hover/click on a post (but don't navigate)
+            if random.random() < 0.1:  # 10% chance
+                try:
+                    # Simulate mouse movement to a random post
+                    self.driver.execute_script("""
+                        var posts = document.querySelectorAll('[data-block="22"]');
+                        if (posts.length > 0) {
+                            var randomPost = posts[Math.floor(Math.random() * posts.length)];
+                            var event = new MouseEvent('mouseover', {
+                                view: window,
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            randomPost.dispatchEvent(event);
+                        }
+                    """)
+                    time.sleep(random.uniform(0.5, 2))
+                except:
+                    pass
 
             # Check if page height changed
             new_height = self.driver.execute_script("return document.body.scrollHeight")
