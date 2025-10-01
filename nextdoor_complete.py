@@ -418,6 +418,12 @@ class NextdoorScanner:
 
         chrome_options = Options()
 
+        # Set Chrome binary location for GitHub Actions
+        if os.path.exists('/usr/bin/chromium-browser'):
+            chrome_options.binary_location = '/usr/bin/chromium-browser'
+        elif os.path.exists('/usr/bin/google-chrome'):
+            chrome_options.binary_location = '/usr/bin/google-chrome'
+
         # Visible mode for testing
         # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1920,1080")
