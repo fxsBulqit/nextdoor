@@ -1126,6 +1126,49 @@ This gist will be automatically deleted after use.
             print(f"❌ Error setting time filter: {str(e)}")
             return False
 
+    def _detect_post_selector_with_ai(self, html_source):
+        """Use AI to detect the correct CSS selector for post containers"""
+        try:
+            # Extract a snippet of HTML to analyze (first 50KB to avoid token limits)
+            html_snippet = html_source[:50000]
+
+            prompt = f"""Analyze this Nextdoor search results page HTML and identify the CSS selector for individual post containers.
+
+Look for repeating div elements that contain:
+- Author name/avatar
+- Post text content
+- Timestamp
+- Comment count
+
+Return ONLY the CSS selector in one of these formats:
+- Class selector: .classname
+- Attribute selector: [attribute-name="value"]
+
+HTML snippet:
+{html_snippet}
+
+CSS Selector:"""
+
+            response = self.groq_client.client.chat.completions.create(
+                model=self.groq_client.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=100
+            )
+
+            selector = response.choices[0].message.content.strip()
+
+            # Validate it looks like a selector
+            if selector.startswith('.') or selector.startswith('['):
+                return selector
+            else:
+                print(f"⚠️ AI returned invalid selector: {selector}")
+                return None
+
+        except Exception as e:
+            print(f"❌ Error detecting selector with AI: {e}")
+            return None
+
     def _extract_nextdoor_posts(self):
         """Extract main posts from Nextdoor page"""
         try:
@@ -1162,6 +1205,27 @@ This gist will be automatically deleted after use.
             # Method 3: Last resort - look for divs with specific structure
             if not post_containers:
                 post_containers = main_content.find_all('div', attrs={'data-v3-view-type': 'V3Wrapper'})
+
+            # Method 4: AI-powered selector discovery if nothing found
+            if not post_containers:
+                print("🤖 No posts found with known selectors - using AI to detect new selector...")
+                detected_selector = self._detect_post_selector_with_ai(page_source)
+                if detected_selector:
+                    print(f"✅ AI detected selector: {detected_selector}")
+                    # Try the AI-detected selector
+                    try:
+                        if detected_selector.startswith('.'):
+                            # Class selector
+                            post_containers = main_content.find_all('div', class_=detected_selector[1:])
+                        elif detected_selector.startswith('['):
+                            # Attribute selector like [data-testid="..."]
+                            import re
+                            attr_match = re.match(r'\[([^=]+)="([^"]+)"\]', detected_selector)
+                            if attr_match:
+                                attr_name, attr_value = attr_match.groups()
+                                post_containers = main_content.find_all('div', attrs={attr_name: attr_value})
+                    except Exception as e:
+                        print(f"⚠️ Error using AI-detected selector: {e}")
 
             print(f"🔍 Found {len(post_containers)} potential post containers")
 
