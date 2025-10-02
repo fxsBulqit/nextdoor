@@ -1151,8 +1151,18 @@ This gist will be automatically deleted after use.
                 print("❌ Could not find main content area")
                 return []
 
-            # Find all post containers
-            post_containers = main_content.find_all('div', class_='_7uk7470')
+            # Find all post containers - try multiple selectors for reliability
+            # Method 1: Try data-testid (most stable)
+            post_containers = main_content.find_all('div', attrs={'data-testid': lambda x: x and 'dwell-tracker-searchFeedItem' in x})
+
+            # Method 2: Fallback to class name if data-testid doesn't work
+            if not post_containers:
+                post_containers = main_content.find_all('div', class_='_7uk7470')
+
+            # Method 3: Last resort - look for divs with specific structure
+            if not post_containers:
+                post_containers = main_content.find_all('div', attrs={'data-v3-view-type': 'V3Wrapper'})
+
             print(f"🔍 Found {len(post_containers)} potential post containers")
 
             # Save all container HTML to debug file
