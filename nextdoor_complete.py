@@ -1133,6 +1133,15 @@ This gist will be automatically deleted after use.
             time.sleep(3)
 
             page_source = self.driver.page_source
+
+            # Save full HTML for debugging
+            try:
+                with open('search_page_full.html', 'w', encoding='utf-8') as f:
+                    f.write(page_source)
+                print("💾 Saved full page HTML to search_page_full.html")
+            except Exception as e:
+                print(f"⚠️ Could not save HTML: {str(e)}")
+
             soup = BeautifulSoup(page_source, "html.parser")
             posts_data = []
 
@@ -1143,7 +1152,7 @@ This gist will be automatically deleted after use.
                 return []
 
             # Find all post containers
-            post_containers = main_content.find_all('div', class_='_7uk7474')
+            post_containers = main_content.find_all('div', class_='_7uk7470')
             print(f"🔍 Found {len(post_containers)} potential post containers")
 
             # Save all container HTML to debug file
