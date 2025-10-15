@@ -274,45 +274,17 @@ class NextdoorGroqFilter:
         if not relevant_posts:
             return "No relevant Nextdoor posts found."
 
+        # Get search term and day from first post (all posts should have same search_term now)
+        search_term = relevant_posts[0].get('search_term', 'unknown')
+        day_of_week = datetime.now().strftime('%A')
+
         report_lines = []
-        report_lines.append("🏠 BULQIT NEXTDOOR OPPORTUNITIES REPORT")
+        report_lines.append("🏠 NEXTDOOR SEARCH RESULTS")
         report_lines.append("=" * 50)
+        report_lines.append(f"Search: \"{search_term}\"")
+        report_lines.append(f"Day: {day_of_week}")
         report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report_lines.append("=" * 50)
-        report_lines.append("")
-
-        # Summary
-        report_lines.append("📊 SUMMARY:")
-        report_lines.append(f"  🏠 Total Relevant Posts: {len(relevant_posts)}")
-
-        # Count posts by search term
-        search_term_counts = {}
-        for post in relevant_posts:
-            search_term = post.get('search_term', 'unknown')
-            if search_term not in search_term_counts:
-                search_term_counts[search_term] = 0
-            search_term_counts[search_term] += 1
-
-        if search_term_counts:
-            report_lines.append("  📊 Posts found per search:")
-            for search_term, count in search_term_counts.items():
-                report_lines.append(f"    • {search_term}: {count}")
-
-        # Group by service type
-        service_types = {}
-
-        for post in relevant_posts:
-            analysis = post.get('analysis', {})
-            service_type = analysis.get('service_type', 'general')
-
-            if service_type not in service_types:
-                service_types[service_type] = []
-            service_types[service_type].append(post)
-
-        report_lines.append("  🔧 Service type breakdown:")
-        for service_type, count in [(k, len(v)) for k, v in service_types.items()]:
-            report_lines.append(f"    • {service_type.replace('_', ' ').title()}: {count}")
-
         report_lines.append("")
 
         # Sort posts alphabetically by author
@@ -344,11 +316,15 @@ class NextdoorGroqFilter:
 
         report_content = self.generate_report(relevant_posts)
 
-        subject = f"🏠 Bulqit Nextdoor Opportunities - {len(relevant_posts)} Relevant Posts - {datetime.now().strftime('%Y-%m-%d')}"
+        # Get search term and day for subject
+        search_term = relevant_posts[0].get('search_term', 'unknown') if relevant_posts else 'unknown'
+        day_of_week = datetime.now().strftime('%A')
+
+        subject = f"🏠 Nextdoor - {day_of_week} ({search_term}) - {len(relevant_posts)} Posts - {datetime.now().strftime('%Y-%m-%d')}"
 
         success = self.email_sender._send_with_custom_subject(
             report_content,
-            ["fxs@bulqit.com"],
+            ["fxs@bulqit.com", "tjv@bulqit.com"],
             subject,
             json_attachment=all_posts
         )
