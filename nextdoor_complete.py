@@ -648,91 +648,76 @@ class NextdoorScanner:
 
             print(f"📍 After login URL: {self.driver.current_url}")
 
-            # Search multiple terms with anti-detection (temporarily just first one for testing)
-            search_terms = [
-                "pool",
-                "window",
-                "bin",
-                "lawn",
-                "gardener",
-                "pest control",
-                "pressure washing"
-            ]
+            # Weekly rotation: One search term per day to avoid shadowban
+            # Map day of week to search term
+            search_schedule = {
+                0: "pool",              # Monday
+                1: "window",            # Tuesday
+                2: "bin",               # Wednesday
+                3: "lawn",              # Thursday
+                4: "gardener",          # Friday
+                5: "pest control",      # Saturday
+                6: "pressure washing"   # Sunday
+            }
+
+            # Get today's search term based on day of week
+            today_weekday = datetime.now().weekday()  # 0=Monday, 6=Sunday
+            today_term = search_schedule[today_weekday]
+
+            print(f"\n📅 Today is {datetime.now().strftime('%A')} - searching for: '{today_term}'")
+            print(f"🔍 Single search strategy: One term per day to avoid shadowban")
 
             all_posts = []
-            consecutive_zero_posts = 0
 
-            for i, term in enumerate(search_terms):
-                print(f"\n🔍 Search {i+1}/{len(search_terms)}: '{term}'")
+            # Only search today's term (no loop)
+            term = today_term
+            print(f"\n🔍 Search 1/1: '{term}'")
 
-                is_first_search = (i == 0)
-                if self._search_for_term(term, is_first_search):
-                    print("✅ Search completed")
+            is_first_search = True
+            if self._search_for_term(term, is_first_search):
+                print("✅ Search completed")
 
-                    # Anti-detection: random delay after search
-                    time.sleep(random.uniform(2, 4))
+                # Anti-detection: random delay after search
+                time.sleep(random.uniform(2, 4))
 
-                    # Collect posts for this search term
-                    posts = self._scroll_and_collect_posts()
-                    if posts:
-                        # Tag posts with search term
-                        for post in posts:
-                            post['search_term'] = term
-                        all_posts.extend(posts)
-                        print(f"✅ Found {len(posts)} posts for '{term}'")
-                        consecutive_zero_posts = 0  # Reset counter
-                    else:
-                        consecutive_zero_posts += 1
-                        print(f"⚠️ No posts found for '{term}' (consecutive zeros: {consecutive_zero_posts})")
+                # Collect posts for this search term
+                posts = self._scroll_and_collect_posts()
+                if posts:
+                    # Tag posts with search term
+                    for post in posts:
+                        post['search_term'] = term
+                    all_posts.extend(posts)
+                    print(f"✅ Found {len(posts)} posts for '{term}'")
+                else:
+                    print(f"⚠️ No posts found for '{term}'")
+                    # Send alert if no posts found (possible shadowban)
+                    alert_message = f"""
+⚠️ ZERO POSTS ALERT - Nextdoor Scanner
 
-                        # Shadowban detection: 2 consecutive searches with 0 posts
-                        if consecutive_zero_posts >= 2:
-                            print(f"🚨 SHADOWBAN DETECTED: {consecutive_zero_posts} consecutive searches returned 0 posts")
-                            print("🛑 Stopping search to avoid further detection")
-
-                            # Send alert email
-                            alert_message = f"""
-🚨 SHADOWBAN ALERT - Nextdoor Scanner
-
-The Nextdoor scanner has detected a possible shadowban and stopped searching.
+The Nextdoor scanner found 0 posts for today's search.
 
 Details:
-- {consecutive_zero_posts} consecutive searches returned 0 posts
-- Last successful search: {search_terms[i-consecutive_zero_posts] if i >= consecutive_zero_posts else 'N/A'}
-- Failed searches: {', '.join(search_terms[i-consecutive_zero_posts+1:i+1])}
-- Total posts found before stopping: {len(all_posts)}
+- Day: {datetime.now().strftime('%A')}
+- Search term: '{term}'
+- Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-This usually indicates:
-1. Account is shadowbanned from searching
-2. Rate limiting triggered
-3. Anti-bot detection activated
+This could indicate:
+1. No posts matching the search this week
+2. Possible shadowban
+3. Technical issue
 
-Recommendation: Wait 24-48 hours before next scan, or use a different account.
-
-Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+If this happens multiple days in a row, consider checking manually.
 
 🤖 Generated by Bulqit Nextdoor Monitor
-                            """
+                    """
 
-                            self.email_sender._send_with_custom_subject(
-                                alert_message,
-                                ["fxs@bulqit.com"],
-                                f"🚨 Nextdoor Shadowban Detected - {datetime.now().strftime('%Y-%m-%d')}"
-                            )
-
-                            # Break out of search loop
-                            break
-
-                    # Anti-detection: delay between searches
-                    if i < len(search_terms) - 1:
-                        delay = random.uniform(60, 120)  # 1-2 minutes
-                        print(f"⏳ Waiting {delay:.0f} seconds before next search...")
-                        time.sleep(delay)
-
-                        # Handle any popups that might appear
-                        self._handle_popups()
-                else:
-                    print("❌ Search failed")
+                    self.email_sender._send_with_custom_subject(
+                        alert_message,
+                        ["fxs@bulqit.com"],
+                        f"⚠️ Nextdoor Zero Posts - {term} - {datetime.now().strftime('%Y-%m-%d')}"
+                    )
+            else:
+                print("❌ Search failed")
 
             # Remove duplicates across all searches
             unique_posts = []
@@ -1066,19 +1051,19 @@ This gist will be automatically deleted after use.
 
             # Only apply filters on the first search
             if is_first_search:
-                print("🔧 First search - applying Posts tab and Today filter")
+                print("🔧 First search - applying Posts tab and This week filter")
 
                 if self._click_posts_tab():
                     print("✅ Posts tab clicked")
                 else:
                     print("❌ Failed to click Posts tab")
 
-                if self._set_time_filter_to_today():
-                    print("✅ Time filter set to Today")
+                if self._set_time_filter_to_this_week():
+                    print("✅ Time filter set to This week")
                 else:
                     print("❌ Failed to set time filter")
             else:
-                print("🔧 Subsequent search - skipping Posts tab and Today filter (already set)")
+                print("🔧 Subsequent search - skipping Posts tab and This week filter (already set)")
 
             return True
 
@@ -1117,8 +1102,8 @@ This gist will be automatically deleted after use.
             print(f"❌ Error clicking Posts tab: {str(e)}")
             return False
 
-    def _set_time_filter_to_today(self):
-        """Click time filter button and select Today"""
+    def _set_time_filter_to_this_week(self):
+        """Click time filter button and select This week"""
         try:
             print("📅 Looking for time filter button...")
 
@@ -1144,13 +1129,13 @@ This gist will be automatically deleted after use.
             print("✅ Found and clicked time filter button")
             time.sleep(2)
 
-            # Now look for "Today" option in the dropdown
-            print("📅 Looking for 'Today' option...")
+            # Now look for "This week" option in the dropdown
+            print("📅 Looking for 'This week' option...")
 
-            today_found = self.driver.execute_script("""
+            this_week_found = self.driver.execute_script("""
                 var elements = document.querySelectorAll('span, div, button, li');
                 for (var i = 0; i < elements.length; i++) {
-                    if (elements[i].textContent.trim() === 'Today') {
+                    if (elements[i].textContent.trim() === 'This week') {
                         elements[i].click();
                         return true;
                     }
@@ -1158,12 +1143,12 @@ This gist will be automatically deleted after use.
                 return false;
             """)
 
-            if today_found:
-                print("✅ Selected 'Today' option")
+            if this_week_found:
+                print("✅ Selected 'This week' option")
                 time.sleep(2)
                 return True
             else:
-                print("❌ Could not find 'Today' option")
+                print("❌ Could not find 'This week' option")
                 return False
 
         except Exception as e:
